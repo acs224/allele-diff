@@ -46,12 +46,18 @@ class TestAlleleDiff(unittest.TestCase):
     checked = self.allele_diff.check_alleles(important_alleles, unimportant_alleles)
     self.assertEqual(2, len(checked))
     
-    
   def test_check_4_alleles(self):
     important_alleles = ['B*51240301', 'B*55070101', 'B*07420101', 'B*27090101']
     unimportant_alleles = [allele for allele in self.allele_diff.alleles.keys() if allele not in important_alleles]
     checked = self.allele_diff.check_alleles(important_alleles, unimportant_alleles)
     self.assertEqual(4, len(checked))    
+    
+  # def test_all_check_1(self):
+  #   important_alleles = ['B*55070101']
+  #   unimportant_alleles = [allele for allele in self.all_allele_diff.alleles.keys() if allele not in important_alleles]
+  #   checked = self.all_allele_diff.check_alleles(important_alleles, unimportant_alleles)
+  #   print checked
+  #   self.assertEqual(2, len(checked))
     
 if __name__ == '__main__':
     unittest.main()
