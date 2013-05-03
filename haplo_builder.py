@@ -3,6 +3,7 @@ import operator
 import logging
 from collections import defaultdict
 from operator import itemgetter
+from optparse import OptionParser
 
 class HaploBuilder:
   """Object to facilitate the building of a haplotype translation file."""
@@ -114,7 +115,8 @@ class HaploBuilder:
     """Assign a score to each snp.  This score is meant to minimize the number
     of snps that should be used to define a haplotype.  The current formula is:
     
-    score = (ratio of snp in important haplos) - (ratio of snp in unimportant haplos) + (weighted score to favor snps over reference)
+    score = (ratio of snp in important haplos + .5) / (ratio of snp in unimportant haplos + .5) + (weighted score to favor snps over reference)
+    Note: .5 is added to each ratio in case the denominator is 0
     
     Args:
       important_haplos: List of important haplotypes.
@@ -133,15 +135,25 @@ class HaploBuilder:
       if len(unimportant_haplos) > 0:
         unimportant_ratio = len(unimportant_snp_haplos) / float(len(unimportant_haplos))
       if important_ratio > 0:
-        raw_score = important_ratio - unimportant_ratio + (0 if "_" in snp else 1)
+        raw_score = ((important_ratio + .5) / (unimportant_ratio + .5)) + (0 if "_" in snp else 1)
         all_snp_scores.append({'snp': snp, 'score': raw_score})
         
     return sorted(all_snp_scores, key=itemgetter('score'), reverse=True)
   
 if __name__ == "__main__":
-  #logging.basicConfig(level=logging.DEBUG)
-  haplo_builder = HaploBuilder()
-  important_haplos = ['B*51240301', 'B*55070101']
+  parser = OptionParser()
+  parser.add_option("-f", "--file", dest="filename", help="File with good haplotypes to read.  One haplotype per line. (Required)")
+  parser.add_option("-t", "--types", dest="hap_file", help="File with all haplotypes to read.")
+  parser.add_option("-d", "--debug", action="store_false", dest="debug", default=False, help="Print debug messages.")
+
+  (options, args) = parser.parse_args()
+  if not options.filename: 
+    parser.error('--file is required')
+  if options.debug:
+    logging.basicConfig(level=logging.DEBUG)
+  haplo_builder = HaploBuilder() if not options.hap_file else HaploBuilder(options.hap_file)
+  important_haplos = open(options.filename).read().split("\n")
   unimportant_haplos = [hap for hap in haplo_builder.haplos.keys() if hap not in important_haplos]
   haplo_mapping = haplo_builder.check_haplos(important_haplos, unimportant_haplos, [])
-  print haplo_mapping
+  for item in haplo_mapping:
+    print "%s\t%s" % (item['haplotype'], "\t".join(sorted(item['snps'])))
