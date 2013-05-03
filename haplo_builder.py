@@ -40,7 +40,7 @@ class HaploBuilder:
         allele_string = allele_def[1:]
         # Ignore positions that are NO_CALL or EXON definitions.  
         # NO_CALL can be ignored since it does not contain any basepair definition.
-        haplo_definitions[allele_def[0]] = ["%s:%s" % (i, base) for i, base in enumerate(allele_string) if (self.EXON != base or self.NO_CALL != base)]
+        haplo_definitions[allele_def[0]] = ["%s:%s" % (i, base) for i, base in enumerate(allele_string) if (self.EXON != base and self.NO_CALL != base)]
     return haplo_definitions
  
   def check_haplos(self, important, unimportant, snp_filter):
@@ -139,7 +139,7 @@ class HaploBuilder:
     return sorted(all_snp_scores, key=itemgetter('score'), reverse=True)
   
 if __name__ == "__main__":
-  
+  #logging.basicConfig(level=logging.DEBUG)
   haplo_builder = HaploBuilder()
   important_haplos = ['B*51240301', 'B*55070101']
   unimportant_haplos = [hap for hap in haplo_builder.haplos.keys() if hap not in important_haplos]
