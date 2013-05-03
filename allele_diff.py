@@ -16,10 +16,10 @@ class AlleleDiff:
           continue
         allele_def = line.split()
         allele_string = allele_def[1:]
-        allele_definitions[allele_def[0]] = ["%s:%s" % (i, base) for i, base in enumerate(allele_string) if '_' != base and '|' != base]
+        allele_definitions[allele_def[0]] = ["%s:%s" % (i, base) for i, base in enumerate(allele_string) if ('|' != base or '*' != base)]
     return allele_definitions
  
-  def check_alleles(self, important, unimportant, snp_filter=[]):
+  def check_alleles(self, important, unimportant, snp_filter):
     logging.debug("In check_alleles.  Important: %s Filter: %s" % (important, snp_filter))
     important_alleles = self.filter_alleles(important, snp_filter)
     unimportant_alleles = self.filter_alleles(unimportant, snp_filter, True)
@@ -39,7 +39,7 @@ class AlleleDiff:
       for item in seq:
         snp_map[item]['present'].append(allele)
         
-    all_snp_scores = self.score_snps(important_alleles, snp_map)
+    all_snp_scores = self.score_snps(important_alleles, unimportant_alleles, snp_map)
     for to_test in all_snp_scores:
       if to_test['snp'] not in filtered_snps:
         snp_filter.append(to_test)
@@ -62,22 +62,27 @@ class AlleleDiff:
 
     return filtered_alleles
     
-  def score_snps(self, important_alleles, snp_map):
+  def score_snps(self, important_alleles, unimportant_alleles, snp_map):
     all_snp_scores = []
     for snp, allele_map in snp_map.iteritems():
+      
       important_snp_allele = [allele for allele in allele_map['present'] if allele in important_alleles]
-      raw_score = len(important_snp_allele) / float(len(important_alleles))
-      if raw_score > 0:
+      unimportant_snp_allele = [allele for allele in  allele_map['present'] if allele in unimportant_alleles]
+      important_ratio = len(important_snp_allele) / float(len(important_alleles))
+      unimportant_ratio = 0
+      if len(unimportant_alleles) > 0:
+        unimportant_ratio = len(unimportant_snp_allele) / float(len(unimportant_alleles))
+      if important_ratio > 0:
+        
+        raw_score = important_ratio - unimportant_ratio + (0 if "_" in snp else 1)
         all_snp_scores.append({'snp': snp, 'score': raw_score})
         
-    return sorted(all_snp_scores, key=itemgetter('score'))
+    return sorted(all_snp_scores, key=itemgetter('score'), reverse=True)
   
 if __name__ == "__main__":
   
   allele_diff = AlleleDiff()
-  important_alleles = ["B*51240301"]
-  #important_alleles = ["B*51240301", "B*55070101", "B*35700101", "B*07420101", "B*27090101"]
+  important_alleles = ['B*51240301', 'B*55070101']
   unimportant_alleles = [allele for allele in allele_diff.alleles.keys() if allele not in important_alleles]
-  allele_mapping = allele_diff.check_alleles(important_alleles, unimportant_alleles)
+  allele_mapping = allele_diff.check_alleles(important_alleles, unimportant_alleles, [])
   print allele_mapping
-  #print allele_diff.unimportant_alleles
