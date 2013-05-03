@@ -4,11 +4,11 @@ import logging
 from collections import defaultdict
 from operator import itemgetter
 
-class AlleleDiff:
+class HaploBuilder:
   """Object to facilitate the building of a haplotype translation file."""
     
   def __init__(self, haplo_file="HLAB.txt"):
-    """Construct an AlleleDiff object.
+    """Construct an HaploBuilder object.
     
     Kwargs: 
       haplo_file: File to use for haplotype definitions.
@@ -140,8 +140,8 @@ class AlleleDiff:
   
 if __name__ == "__main__":
   
-  allele_diff = AlleleDiff()
-  important_alleles = ['B*51240301', 'B*55070101']
-  unimportant_alleles = [allele for allele in allele_diff.haplos.keys() if allele not in important_alleles]
-  allele_mapping = allele_diff.check_haplos(important_alleles, unimportant_alleles, [])
-  print allele_mapping
+  haplo_builder = HaploBuilder()
+  important_haplos = ['B*51240301', 'B*55070101']
+  unimportant_haplos = [hap for hap in haplo_builder.haplos.keys() if hap not in important_haplos]
+  haplo_mapping = haplo_builder.check_haplos(important_haplos, unimportant_haplos, [])
+  print haplo_mapping
