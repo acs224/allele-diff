@@ -22,7 +22,7 @@ class HaploBuilder:
     # Special characters in haplotype file
     self.EXON = '|'
     self.NO_CALL = '*'
-    self.REF = '_'
+    self.CALLED_BASES = ['A', 'C', 'G', 'T', '_', '.']
     
     self.haplos = self.parse_haplos(haplo_file)
     self.call_cache = defaultdict(lambda: defaultdict(list))
@@ -45,6 +45,8 @@ class HaploBuilder:
           continue
         allele_def = line.split()
         allele_string = allele_def[1:]
+        if allele_def == 'B*15020101':
+          allele_string = ['_' if base in self.CALLED_BASES  else base for base in allele_string]
         allele_list.append(allele_string)
         self.allele_index.append(allele_def[0])
     self.data_matrix = numpy.array(allele_list)
@@ -71,6 +73,7 @@ class HaploBuilder:
     
     uncallable_haps = []
     brand_new_snp_filter = list(snp_filter)
+    added_snps = False
     for snp in scored_snps:
       new_snp_filter = list(snp_filter)
       new_snp_filter.append(snp['snp'])
@@ -84,15 +87,19 @@ class HaploBuilder:
           print "callable:", hap, new_snp_filter
           defining_snps[hap] = call
           brand_new_snp_filter.append(snp['snp'])
+          added_snps = True
           
     uncallable_haps = [hap for hap in important if hap not in defining_snps.keys()]
     if not uncallable_haps:
       return defining_snps
     else:
       scored_snps = self.score_snps2(uncallable_haps, unimportant, snp_filter)
-      print "fitler", brand_new_snp_filter
+      print "fitler", brand_new_snp_filter, uncallable_haps, scored_snps[0]
       brand_new_snp_filter.append(scored_snps[0]['snp'])
-      return self.check_haplos2(important, unimportant, brand_new_snp_filter, defining_snps)
+      others = [i for i in important if i != hap and hap not in defining_snps]
+      others = others + unimportant
+      #print scored_snps
+      return self.check_haplos2(uncallable_haps, others, brand_new_snp_filter, defining_snps)
     
   def is_callable(self, haplotype, others, snps):
     matching_alleles = self.find_matching(snps)
@@ -112,26 +119,10 @@ class HaploBuilder:
     not_in_other = [combo for combo in haplotype_alleles if combo not in other_alleles]
     #print haplotype_alleles, other_alleles, not_in_other
     if not_in_other:
-      return list(not_in_other)
+      return list(min(not_in_other, key=len))
     return False
   
   def find_matching(self, snps):
-    # snp_hash = "".join(snps)
-    # if snp_hash in self.call_cache:
-    #   return self.call_cache[snp_hash]
-    # alleles = []
-    # locs = []
-    # for snp in snps:
-    #   loc, allele = snp.split(":")
-    #   alleles.append(allele)
-    #   locs.append(int(loc))
-    # result = self.data_matrix[:, locs] == alleles
-    # result_all = numpy.all(result, axis=1)
-    # matching_index = numpy.where(result_all == True)
-    # matching = [hap for i, hap in enumerate(self.allele_index) if i in matching_index[0]]
-    # self.call_cache[snp_hash] = matching
-    # return matching
-    
     alleles = []
     locs = []
     matching_alleles = defaultdict(list)
@@ -174,7 +165,7 @@ class HaploBuilder:
     for i, col in enumerate(self.data_matrix.T):
       important_counter = Counter(col[important_indexes,:])
       unimportant_counter = Counter(col[unimportant_indexes,:])
-      for base in ['A', 'C', 'G', 'T', '_']:
+      for base in self.CALLED_BASES:
         if base not in important_counter and base not in unimportant_counter:
           continue
         snp = "%s:%s" % (i, base)
@@ -184,7 +175,8 @@ class HaploBuilder:
         unimportant_ratio = (unimportant_counter[base] + .5) / (len(unimportant_indexes) + .5)
         if important_ratio > 0:
           raw_score = ((important_ratio + .5) / (unimportant_ratio + .5)) + (0 if base == '_' else 1)
-          all_snp_scores.append({'snp': snp, 'score': raw_score})
+          if raw_score > 0:
+            all_snp_scores.append({'snp': snp, 'score': raw_score, 'import_ratio': important_ratio, 'unimport_ratio': unimportant_ratio})
     
     return sorted(all_snp_scores, key=itemgetter('score'), reverse=True)
     
