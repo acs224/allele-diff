@@ -95,29 +95,64 @@ class HaploBuilder:
       return self.check_haplos2(important, unimportant, brand_new_snp_filter, defining_snps)
     
   def is_callable(self, haplotype, others, snps):
-    for i in range(1, len(snps) + 1):
-      for combo in itertools.combinations(snps, i):
-        matching_alleles = self.find_matching(combo)
-        if len(matching_alleles) == 1 and haplotype in matching_alleles:
-          return list(combo)
+    matching_alleles = self.find_matching(snps)
+    haplotype_alleles = []
+    other_alleles = []
+    for hap, alleles in matching_alleles.iteritems():
+      all_combos = []
+      for i in range(1, len(snps) + 1):
+        for combo in itertools.combinations(alleles, i):
+          all_combos.append(combo)
+      if hap == haplotype:
+        for combo in all_combos:
+          haplotype_alleles.append(combo)
+      else:
+        for combo in all_combos:
+          other_alleles.append(combo)
+    not_in_other = [combo for combo in haplotype_alleles if combo not in other_alleles]
+    #print haplotype_alleles, other_alleles, not_in_other
+    if not_in_other:
+      return list(not_in_other)
     return False
   
   def find_matching(self, snps):
-    snp_hash = "".join(snps)
-    if snp_hash in self.call_cache:
-      return self.call_cache[snp_hash]
+    # snp_hash = "".join(snps)
+    # if snp_hash in self.call_cache:
+    #   return self.call_cache[snp_hash]
+    # alleles = []
+    # locs = []
+    # for snp in snps:
+    #   loc, allele = snp.split(":")
+    #   alleles.append(allele)
+    #   locs.append(int(loc))
+    # result = self.data_matrix[:, locs] == alleles
+    # result_all = numpy.all(result, axis=1)
+    # matching_index = numpy.where(result_all == True)
+    # matching = [hap for i, hap in enumerate(self.allele_index) if i in matching_index[0]]
+    # self.call_cache[snp_hash] = matching
+    # return matching
+    
     alleles = []
     locs = []
+    matching_alleles = defaultdict(list)
     for snp in snps:
       loc, allele = snp.split(":")
       alleles.append(allele)
       locs.append(int(loc))
     result = self.data_matrix[:, locs] == alleles
-    result_all = numpy.all(result, axis=1)
-    matching_index = numpy.where(result_all == True)
-    matching = [hap for i, hap in enumerate(self.allele_index) if i in matching_index[0]]
-    self.call_cache[snp_hash] = matching
-    return matching
+    result_any = numpy.any(result, axis=1)
+    matching_index = numpy.where(result_any == True)
+    
+    #print "RESULT",  result, snps
+    for index in matching_index[0]:
+      hap_name = self.allele_index[index]
+      compare_results = result[index]
+      #print "COMP", compare_results, snps, hap_name
+      for i, r in enumerate(compare_results):
+        if r:
+          matching_alleles[hap_name].append(snps[i])
+    #print matching_alleles
+    return matching_alleles
     
   def score_snps2(self, important_haplos, unimportant_haplos, snp_filter):
     """Assign a score to each snp.  This score is meant to minimize the number
