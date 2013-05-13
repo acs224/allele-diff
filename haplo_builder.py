@@ -124,7 +124,7 @@ class HaploBuilder:
     index_all = numpy.where(result_all == True)
     
     good_haps = []
-    for index in index_all[0]:
+    for index in index_any[0]:
       hap_name = self.allele_index[index]
       if hap_name in hap_list:
         good_haps.append(hap_name)
@@ -133,23 +133,16 @@ class HaploBuilder:
   def call_haplotype(self, haplotype, unimportant, snp_filter, defining_snps):
     already_called = [snp for snp_list in defining_snps.values() for snp in snp_list]
     scored_snps = self.score_snps3([haplotype], unimportant, snp_filter, already_called)
-    brand_new_snp_filter = list(snp_filter)
-    added_snps = False
     for snp in scored_snps:
-      print snp
       new_snp_filter = list(snp_filter)
       new_snp_filter.append(snp['snp'])
       call = self.is_callable2([haplotype], unimportant, new_snp_filter)
       if call:
-        print "about to return:", call, new_snp_filter
         return call
       else:
         results = self.call_haplotype(haplotype, unimportant, new_snp_filter, defining_snps)
         if results:
           return results
-        else:
-          return []
-          
     return []
   
   def call_haplotypes(self, important, unimportant, snp_filter):
@@ -158,10 +151,8 @@ class HaploBuilder:
       return []
     all_haps = {}
     for haplotype in identifiable:
-      print "TRYINT TO CALL", haplotype
       new = unimportant + [hap for hap in identifiable if hap != haplotype]
       result = self.call_haplotype(haplotype, new, snp_filter, all_haps)
-      print "CALLED:", result
       all_haps.update(result)
     return all_haps
 
@@ -192,21 +183,21 @@ class HaploBuilder:
     matching_alleles = self.find_matching2(important, unimportant, snps)
     snp_map = defaultdict(list)
     good_snp_map = {}
-    print important, snps, matching_alleles
-    
+    # for haplotype, matching_snps in matching_alleles.iteritems():
+    #   for i in range(1, len(matching_snps) + 1):
+    #     for combo in itertools.combinations(matching_snps, i):
+    #       snp_hash = "|".join(combo)
+    #       snp_map[snp_hash].append(haplotype)
+          
     for haplotype, matching_snps in matching_alleles.iteritems():
       snp_hash = "|".join(matching_snps)
       snp_map[snp_hash].append(haplotype)
-    #print important, snp_map
+    #print snp_map
     for snp_hash, haps in snp_map.iteritems():
       if len(haps) == 1 and haps[0] in important:
         good_snp_map[haps[0]] = snp_hash.split("|")
-    print "MAP:",  snp_map, good_snp_map
-    #print snps, len(matching_alleles), matching_alleles
+    #print important, good_snp_map
     if good_snp_map:
-      #print "MATCHING", matching_alleles
-      #print "snp_map", snp_map
-      print "returning",  good_snp_map
       return good_snp_map
     return False
     
@@ -324,9 +315,7 @@ class HaploBuilder:
     unimportant_filtered = unimportant_haplos
     important_filtered = important_haplos
     if snp_filter:
-      print "FILTER", snp_filter
       unimportant_filtered = self.filter_haps(unimportant_haplos, snp_filter)
-      #important_filtered = self.filter_haps(important_haplos, snp_filter)
     important_indexes = [i for i, item in enumerate(self.allele_index) if item in important_filtered]
     unimportant_indexes = [i for i, item in enumerate(self.allele_index) if item in unimportant_filtered]
 
@@ -339,14 +328,10 @@ class HaploBuilder:
         snp = "%s:%s" % (i, base)
         if snp in snp_filter:
           continue
-        # important_ratio = 0
-        # if len(important_indexes) > 0:
         important_ratio = important_counter[base] / float(len(important_indexes))
-        # unimportant_ratio = 0
-        # if len(unimportant_indexes) > 0:
         unimportant_ratio = unimportant_counter[base] / float(len(unimportant_filtered))
         if important_ratio > 0:
-          raw_score = (1 - important_ratio) + (1 - unimportant_ratio) * (.9 if "_" in snp else 1) * (.9 if snp in used_snps else 1)
+          raw_score = (1 - important_ratio) + (1 - unimportant_ratio) * (.9 if "_" in snp else 1) #* (1.1 if snp in used_snps else 1)
           if raw_score > 0:
             all_snp_scores.append({'snp': snp, 'score': raw_score, 'import_ratio': important_ratio, 'unimport_ratio': unimportant_ratio})
 
