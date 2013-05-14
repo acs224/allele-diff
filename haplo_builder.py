@@ -33,26 +33,30 @@ class HaploBuilder:
       haplo_file: File to parse
       
     """
+    self.allele_index = []
+    self.synonyms = {}
+    
     haplo_definitions = {}
     allele_list = []
-    self.allele_index = []
-    self.allele_hash = {}
-    self.unidentifiable = []
+    allele_hash = {}
     with open(haplo_file) as f:
       for i, line in enumerate(f):
         if i < self.HEADER_ROWS:
           continue
         allele_def = line.split()
+        hap_name = allele_def[0]
         allele_string = allele_def[1:]
-        allele_list.append(allele_string)
         string_hash = "".join(allele_string)
-        if string_hash in self.allele_hash:
-          self.unidentifiable = self.unidentifiable + self.allele_hash[string_hash]
-          self.unidentifiable.append(allele_def[0])
+        if string_hash in allele_hash:
+          self.synonyms[hap_name] = allele_hash[string_hash][0]
+          if allele_hash[string_hash][0] not in self.synonyms:
+            self.synonyms[allele_hash[string_hash][0]] = allele_hash[string_hash][0]
         else:
-          self.allele_hash[string_hash] = []
-        self.allele_hash[string_hash].append(allele_def[0])
-        self.allele_index.append(allele_def[0])
+          allele_hash[string_hash] = []
+          allele_list.append(allele_string)
+          self.allele_index.append(hap_name)
+        allele_hash[string_hash].append(hap_name)
+    
     self.data_matrix = numpy.array(allele_list)
   
   def filter_matrix(self, snps):
@@ -102,10 +106,13 @@ class HaploBuilder:
       call = self.make_call(haplotype, unimportant, new_snp_filter)
       if call:
         return call
-      else:
-        results = self.call_haplotype(haplotype, unimportant, new_snp_filter, defining_snps)
-        if results:
-          return results
+
+    for snp in scored_snps:
+      new_snp_filter = list(snp_filter)
+      new_snp_filter.append(snp['snp'])
+      results = self.call_haplotype(haplotype, unimportant, new_snp_filter, defining_snps)
+      if results:
+        return results    
     return []
   
   def call_haplotypes(self, important, unimportant, snp_filter):
@@ -121,16 +128,23 @@ class HaploBuilder:
     
     """
     
-    identifiable = [hap for hap in important if hap not in self.unidentifiable]
+    identifiable = [hap for hap in important if hap not in self.synonyms]
     unidentifiable = [hap for hap in important if hap not in identifiable]
-    if not identifiable:
-      return []
+    # unidentifiable_syns = {}
+    # for hap in unidentifiable:
+    #   unidentifiable_syns[hap] = self.synonyms[hap]
+    # print unidentifiable, unidentifiable_syns
+    # identifiable = identifiable + unidentifiable_syns.keys()
     all_haps = {}
     for haplotype in identifiable:
-      others = unimportant + [hap for hap in identifiable if hap != haplotype]
-      result = self.call_haplotype(haplotype, others, snp_filter, all_haps)
+      result = self.call_haplotype(haplotype, unimportant, snp_filter, all_haps)
+      # for hap, snps in result.iteritems():
+      #   if hap in unidentifiable_syns:
+      #     all_haps[unidentifiable_syns[hap]] = snps
+      #   else:
+      #     all_haps[hap] = snps
       all_haps.update(result)
-      
+          
     for hap in unidentifiable:
       all_haps[hap] = ['Unidentifiable']
     return all_haps

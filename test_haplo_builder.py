@@ -73,8 +73,13 @@ class TestHaploBuilder(unittest.TestCase):
      checked = self.all_haplo_diff.call_haplotypes(important_haplos, unimportant_haplos, [])
      self.assertEqual(3, len(checked))  
      self.assertEqual(3, len(checked['B*51240301']))  
-     self.assertEqual(4, len(checked['B*55070101']))  
+     self.assertEqual(3, len(checked['B*55070101']))  
      self.assertTrue('Unidentifiable' in checked['B*35700101'])
+     
+  def test_duplicate_haplo(self):
+    important_haplos = ['B*35700101']
+    unimportant_haplos = [hap for hap in self.all_haplo_diff.allele_index if hap not in important_haplos]
+    checked = self.all_haplo_diff.call_haplotypes(important_haplos, unimportant_haplos, [])
     
   def test_all_check_1(self):
     # This seems to be the most difficult haplotype to call in the set
@@ -82,7 +87,7 @@ class TestHaploBuilder(unittest.TestCase):
     unimportant_haplos = [hap for hap in self.all_haplo_diff.allele_index if hap not in important_haplos]
     checked = self.all_haplo_diff.call_haplotypes(important_haplos, unimportant_haplos, [])
     self.assertEqual(1, len(checked))   
-    self.assertEqual(61, len(checked['B*51090201']))   
+    self.assertEqual(12, len(checked['B*51090201']))   
         
   def test_all_check_2(self):
      important_haplos = ['B*35700101', 'B*52060201']
@@ -96,7 +101,7 @@ class TestHaploBuilder(unittest.TestCase):
     checked = self.all_haplo_diff.call_haplotypes(important_haplos, unimportant_haplos, [])
     called_snps = [snp for snp_list in checked.values() for snp in snp_list]
     self.assertEqual(10, len(checked))
-    self.assertEqual(24, len(called_snps))
+    self.assertEqual(21, len(called_snps))
   
 if __name__ == '__main__':
     unittest.main()
